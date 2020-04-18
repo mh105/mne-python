@@ -1226,7 +1226,7 @@ def _extract_volume_info(mgz, raise_error=True):
     vol_info['filename'] = mgz
     vol_info['volume'] = header['dims'][:3]
     vol_info['voxelsize'] = header['delta']
-    vol_info['xras'], vol_info['yras'], vol_info['zras'] = header['Mdc'].T
+    vol_info['xras'], vol_info['yras'], vol_info['zras'] = header['Mdc']
     vol_info['cras'] = header['Pxyz_c']
     return vol_info
 
