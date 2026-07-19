@@ -23,7 +23,12 @@ from mne.viz import (
     ui_events,
 )
 from mne.viz.evoked import _line_plot_onselect
-from mne.viz.topo import _imshow_tfr, _plot_update_evoked_topo_proj, iter_topography
+from mne.viz.topo import (
+    _imshow_tfr,
+    _plot_topo_onpick,
+    _plot_update_evoked_topo_proj,
+    iter_topography,
+)
 from mne.viz.utils import _fake_click, _fake_keypress
 
 base_dir = Path(__file__).parents[2] / "io" / "tests" / "data"
@@ -240,6 +245,37 @@ def test_plot_topo():
     _fake_click(fig, ax, (0.05, 0.7), xform="data", kind="motion")
     _fake_click(fig, ax, (0.05, 0.7), xform="data", kind="release")
     assert fig.lasso.selection == ["MEG 0113", "MEG 0112", "MEG 0111"]
+
+
+def test_plot_topo_onpick_child_hooks():
+    """Test injecting child figure creation and showing into topo clicks."""
+    parent_fig, parent_ax = plt.subplots()
+    child_fig, child_ax = plt.subplots()
+    parent_fig.canvas._key = None
+    parent_ax._mne_ch_idx = 1
+    parent_ax._mne_ch_name = "EEG 002"
+    parent_ax._mne_ax_face_color = "black"
+    calls = dict()
+
+    def create_child_fig():
+        calls["create"] = True
+        return child_fig, child_ax
+
+    def show_func(ax, ch_idx, orig_fig):
+        calls["plot"] = (ax, ch_idx, orig_fig)
+
+    def show_child_fig(fig):
+        calls["show"] = fig
+
+    event = namedtuple("Event", ["inaxes"])(parent_ax)
+    _plot_topo_onpick(event, show_func, create_child_fig, show_child_fig)
+
+    assert calls["create"]
+    assert calls["plot"] == (child_ax, 1, parent_fig)
+    assert calls["show"] is child_fig
+    assert child_ax.get_title() == "EEG 002"
+    plt.close(parent_fig)
+    plt.close(child_fig)
 
 
 def test_plot_topo_nirs(fnirs_evoked):

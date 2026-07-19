@@ -189,8 +189,11 @@ class SpectrumMixin:
 
         Returns
         -------
-        fig : instance of matplotlib.figure.Figure
+        fig : matplotlib.figure.Figure | mne_qt_browser.figure.MNESpectrumTopo
             Figure distributing one image per channel across sensor topography.
+            A matplotlib figure is returned when ``axes`` is provided or the
+            matplotlib 2D browser backend is selected. Otherwise, the Qt window
+            handle is returned.
         """
         init_kw, plot_kw = _split_psd_kwargs(plot_fun=Spectrum.plot_topo)
         return self.compute_psd(**init_kw).plot_topo(**plot_kw)
@@ -740,8 +743,11 @@ class BaseSpectrum(ContainsMixin, UpdateChannelsMixin):
 
         Returns
         -------
-        fig : instance of matplotlib.figure.Figure
+        fig : matplotlib.figure.Figure | mne_qt_browser.figure.MNESpectrumTopo
             Figure distributing one image per channel across sensor topography.
+            A matplotlib figure is returned when ``axes`` is provided or the
+            matplotlib 2D browser backend is selected. Otherwise, the Qt window
+            handle is returned.
         """
         if layout is None:
             layout = find_layout(self.info)
@@ -760,8 +766,8 @@ class BaseSpectrum(ContainsMixin, UpdateChannelsMixin):
         click_func = partial(_plot_timeseries, data=[psds], color=color, times=[freqs])
         picks = _pick_data_channels(self.info)
         info = pick_info(self.info, picks)
-        fig = _plot_topo(
-            info,
+        topo_kwargs = dict(
+            info=info,
             times=freqs,
             show_func=show_func,
             click_func=click_func,
@@ -771,8 +777,14 @@ class BaseSpectrum(ContainsMixin, UpdateChannelsMixin):
             x_label="Frequency (Hz)",
             unified=True,
             y_label=y_label,
-            axes=axes,
         )
+
+        if axes is None:
+            from ..viz._figure import _get_spectrum_topo
+
+            return _get_spectrum_topo(show=show, block=block, **topo_kwargs)
+
+        fig = _plot_topo(axes=axes, **topo_kwargs)
         plt_show(show, block=block)
         return fig
 

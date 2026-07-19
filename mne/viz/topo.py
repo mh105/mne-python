@@ -140,6 +140,8 @@ def _iter_topography(
     axes=None,
     legend=False,
     select=False,
+    create_child_fig=None,
+    show_child_fig=None,
 ):
     """Iterate over topography.
 
@@ -184,7 +186,12 @@ def _iter_topography(
         layout = find_layout(info)
 
     if on_pick is not None:
-        callback = partial(_plot_topo_onpick, show_func=on_pick)
+        callback = partial(
+            _plot_topo_onpick,
+            show_func=on_pick,
+            create_child_fig=create_child_fig,
+            show_child_fig=show_child_fig,
+        )
         fig.canvas.mpl_connect("button_press_event", callback)
 
     pos = layout.pos.copy()
@@ -310,6 +317,8 @@ def _plot_topo(
     img=False,
     axes=None,
     select=False,
+    create_child_fig=None,
+    show_child_fig=None,
 ):
     """Plot on sensor layout."""
     import matplotlib.pyplot as plt
@@ -363,6 +372,8 @@ def _plot_topo(
         img=img,
         axes=axes,
         select=select,
+        create_child_fig=create_child_fig,
+        show_child_fig=show_child_fig,
     )
 
     for ax, ch_idx in my_topo_plot:
@@ -379,7 +390,7 @@ def _plot_topo(
     return fig
 
 
-def _plot_topo_onpick(event, show_func):
+def _plot_topo_onpick(event, show_func, create_child_fig=None, show_child_fig=None):
     """Onpick callback that shows a single channel in a new figure."""
     orig_ax = event.inaxes
     fig = orig_ax.figure
@@ -391,8 +402,6 @@ def _plot_topo_onpick(event, show_func):
     # make sure that the swipe gesture in OS-X doesn't open many figures
     if fig.canvas._key in ["shift", "alt"]:
         return
-
-    import matplotlib.pyplot as plt
 
     try:
         if hasattr(orig_ax, "_mne_axs"):  # in unified, single-axes mode
@@ -414,18 +423,27 @@ def _plot_topo_onpick(event, show_func):
             return
         ch_idx = orig_ax._mne_ch_idx
         face_color = orig_ax._mne_ax_face_color
-        subfig, ax = plt.subplots(1)
+        if create_child_fig is None:
+            import matplotlib.pyplot as plt
 
-        plt.title(orig_ax._mne_ch_name)
+            subfig, ax = plt.subplots(1)
+        else:
+            subfig, ax = create_child_fig()
+
+        ax.set_title(orig_ax._mne_ch_name)
         ax.set_facecolor(face_color)
 
         # allow custom function to override parameters
         if "orig_fig" in signature(show_func).parameters:
             show_func(ax, ch_idx, orig_fig=fig)
-            plt_show(fig=subfig)
+            default_show_fig = subfig
         else:
             show_func(ax, ch_idx)
-            plt_show(fig=fig)
+            default_show_fig = fig
+        if show_child_fig is None:
+            plt_show(fig=default_show_fig)
+        else:
+            show_child_fig(subfig)
 
     except Exception as err:
         # matplotlib silently ignores exceptions in event handlers,
@@ -664,12 +682,12 @@ def _plot_timeseries(
 
     ax._selectline = None
     ax._selectcolor = "white" if face_brightness < 150 else "black"
-    if orig_fig._current_time is not None:
+    if getattr(orig_fig, "_current_time", None) is not None:
         _update_selectline(orig_fig._current_time)
 
-    plt.connect("motion_notify_event", _cursor_vline)
-    plt.connect("axes_leave_event", _rm_cursor)
-    plt.connect("button_press_event", _on_click)
+    ax.figure.canvas.mpl_connect("motion_notify_event", _cursor_vline)
+    ax.figure.canvas.mpl_connect("axes_leave_event", _rm_cursor)
+    ax.figure.canvas.mpl_connect("button_press_event", _on_click)
 
     subscribe(ax.figure, "time_change", _on_time_change_sub)
 

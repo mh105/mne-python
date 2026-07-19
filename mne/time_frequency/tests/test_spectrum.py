@@ -5,10 +5,13 @@
 import datetime
 import re
 from functools import partial
+from types import SimpleNamespace
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from matplotlib.colors import same_color
+from matplotlib.figure import Figure
 from numpy.testing import assert_allclose, assert_array_equal
 
 from mne import (
@@ -28,6 +31,7 @@ from mne.time_frequency.spectrum import (
     combine_spectrum,
 )
 from mne.utils import _import_h5io_funcs, _record_warnings
+from mne.viz.utils import _fake_click
 
 
 def test_compute_psd_errors(raw):
@@ -693,7 +697,7 @@ def test_spectrum_array(kind, method, output, average, tmp_path, request):
         ("multitaper", "complex", None),  # test aggr over tapers & conversion to power
     ],  # additional variants don't improve coverage
 )
-def test_plot_spectrum(method, output, average, request):
+def test_plot_spectrum(method, output, average, request, mpl_backend):
     """Test plotting EpochsSpectrum(Array).
 
     Testing Spectrum(Array) with raw data doesn't improve coverage.
@@ -719,6 +723,86 @@ def test_plot_spectrum(method, output, average, request):
         assert n_bad == 1
     spectrum.plot_topo()
     spectrum.plot_topomap()
+
+
+def _get_topo_spectrum():
+    """Create a small Spectrum with valid EEG locations."""
+    info = create_info(["Fp1", "Fp2"], 100, "eeg")
+    info.set_montage("colin27_1020")
+    data = np.arange(1, 7).reshape(2, 3)
+    return SpectrumArray(data, info, np.arange(1, 4))
+
+
+def test_plot_spectrum_topo_qt_dispatch(monkeypatch):
+    """Test that Spectrum.plot_topo dispatches to a capable Qt backend."""
+    from mne.viz import _figure
+
+    spectrum = _get_topo_spectrum()
+    handle = object()
+    calls = dict()
+
+    def _init_spectrum_topo(**kwargs):
+        calls["kwargs"] = kwargs
+        return handle
+
+    def _show_browser(*, show, block, fig):
+        calls["show"] = (show, block, fig)
+
+    monkeypatch.setattr(_figure, "get_browser_backend", lambda: "qt")
+    monkeypatch.setattr(
+        _figure,
+        "backend",
+        SimpleNamespace(_init_spectrum_topo=_init_spectrum_topo),
+    )
+    monkeypatch.setattr(_figure, "_show_browser", _show_browser)
+
+    got = spectrum.plot_topo(show=False, block=True)
+
+    assert got is handle
+    assert calls["show"] == (False, True, handle)
+    assert calls["kwargs"]["info"].ch_names == spectrum.ch_names
+    assert_array_equal(calls["kwargs"]["times"], spectrum.freqs)
+    assert "axes" not in calls["kwargs"]
+
+
+def test_plot_spectrum_topo_old_qt_fallback(monkeypatch):
+    """Test fallback when mne-qt-browser lacks Spectrum topo support."""
+    from mne.viz import _figure
+
+    monkeypatch.setattr(_figure, "get_browser_backend", lambda: "qt")
+    monkeypatch.setattr(_figure, "backend", SimpleNamespace())
+    monkeypatch.setattr(
+        _figure,
+        "_show_browser",
+        lambda **kwargs: pytest.fail("Qt show should not be used for fallback"),
+    )
+
+    fig = _get_topo_spectrum().plot_topo(show=False)
+
+    assert isinstance(fig, Figure)
+    plt.close(fig)
+
+
+def test_plot_spectrum_topo_axes_bypass(monkeypatch):
+    """Test that user-supplied axes always bypass browser dispatch."""
+    from mne.viz import _figure
+
+    monkeypatch.setattr(
+        _figure,
+        "_get_spectrum_topo",
+        lambda **kwargs: pytest.fail("Browser dispatch should not be used"),
+    )
+    fig, ax = plt.subplots()
+
+    got = _get_topo_spectrum().plot_topo(axes=ax, show=False)
+
+    assert got is fig
+    n_figs = len(plt.get_fignums())
+    topo_ax = ax._mne_axs[0]
+    click_pos = topo_ax.pos[:2] + topo_ax.pos[2:] / 2
+    _fake_click(fig, ax, click_pos, xform="data")
+    assert len(plt.get_fignums()) == n_figs + 1
+    plt.close("all")
 
 
 def test_plot_spectrum_array_with_bads():

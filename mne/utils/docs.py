@@ -419,12 +419,15 @@ docdict["axes_spectrum_plot"] = _axes_list.format(
     must=_match_chtypes_present_in.format(":class:`~mne.time_frequency.Spectrum` "),
     extra="",
 )
-docdict["axes_spectrum_plot_topo"] = _axes_list.format(
-    param="axes",
-    must="be length 1 (for efficiency, subplots for each channel are simulated "
-    "within a single :class:`~matplotlib.axes.Axes` object)",
-    extra="",
-)
+docdict["axes_spectrum_plot_topo"] = """\
+axes : instance of Axes | list of Axes | None
+    The axes to plot into. If ``None``, a new figure will be created using the
+    selected 2D browser backend. If :class:`~matplotlib.axes.Axes` are provided
+    (either as a single instance or a :class:`list` of axes), the matplotlib
+    backend is always used and the number of axes provided must be length 1
+    (for efficiency, subplots for each channel are simulated within a single
+    :class:`~matplotlib.axes.Axes` object). Default is ``None``.
+"""
 docdict["axes_spectrum_plot_topomap"] = _axes_list.format(
     param="axes", must="match the length of ``bands``", extra=""
 )
@@ -3022,7 +3025,8 @@ normalize : bool
 docdict["notes_2d_backend"] = """\
 MNE-Python provides two different backends for browsing plots (i.e.,
 :meth:`raw.plot()<mne.io.Raw.plot>`, :meth:`epochs.plot()<mne.Epochs.plot>`,
-and :meth:`ica.plot_sources()<mne.preprocessing.ICA.plot_sources>`). One is
+:meth:`ica.plot_sources()<mne.preprocessing.ICA.plot_sources>`, and
+:meth:`spectrum.plot_topo()<mne.time_frequency.Spectrum.plot_topo>`). One is
 based on :mod:`matplotlib`, and the other is based on
 :doc:`PyQtGraph<pyqtgraph:index>`. You can set the backend temporarily with the
 context manager :func:`mne.viz.use_browser_backend`, you can set it for the
