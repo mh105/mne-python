@@ -98,7 +98,7 @@ _known_config_types = {
         "tuple, width and height of the raw browser window (in inches)"
     ),
     "MNE_BROWSER_BACKEND": (
-        'str, the backend to use for the raw browser ("qt" or "matplotlib")'
+        'str, the backend to use for 2D browser plots ("qt" or "matplotlib")'
     ),
     "MNE_BROWSER_OVERVIEW_MODE": (
         "str, the overview mode to use in the raw browser (see mne.viz.plot_raw() for "

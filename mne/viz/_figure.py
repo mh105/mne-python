@@ -29,7 +29,7 @@ from ..utils import (
     verbose,
 )
 from .backends._utils import VALID_BROWSE_BACKENDS
-from .utils import _get_color_list, _setup_plot_projector, _show_browser
+from .utils import _get_color_list, _setup_plot_projector, _show_browser, plt_show
 
 MNE_BROWSER_BACKEND = None
 backend = None
@@ -771,6 +771,26 @@ def _get_browser(show, block, **kwargs):
     return fig
 
 
+def _get_spectrum_topo(show, block, **kwargs):
+    """Plot a Spectrum topo with the selected 2D browser backend."""
+    backend_name = get_browser_backend()
+    if backend_name == "qt" and hasattr(backend, "_init_spectrum_topo"):
+        fig = backend._init_spectrum_topo(**kwargs)
+        _show_browser(show=show, block=block, fig=fig)
+        return fig
+
+    if backend_name == "qt":
+        logger.info(
+            "The installed mne-qt-browser does not support "
+            "Spectrum.plot_topo(). Defaulting to matplotlib."
+        )
+    from .topo import _plot_topo
+
+    fig = _plot_topo(**kwargs)
+    plt_show(show, block=block)
+    return fig
+
+
 def _check_browser_backend_name(backend_name):
     _validate_type(backend_name, str, "backend_name")
     backend_name = backend_name.lower()
@@ -816,6 +836,8 @@ def set_browser_backend(backend_name, verbose=None):
        | :func:`plot_epochs`                  | ✓          | ✓  |
        +--------------------------------------+------------+----+
        | :func:`plot_ica_sources`             | ✓          | ✓  |
+       +--------------------------------------+------------+----+
+       | ``Spectrum.plot_topo``               | ✓          | ✓  |
        +--------------------------------------+------------+----+
        +--------------------------------------+------------+----+
        | **Feature:**                                           |
