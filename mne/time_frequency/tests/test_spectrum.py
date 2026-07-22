@@ -733,11 +733,16 @@ def _get_topo_spectrum():
     return SpectrumArray(data, info, np.arange(1, 4))
 
 
-def test_plot_spectrum_topo_qt_dispatch(monkeypatch):
-    """Test that Spectrum.plot_topo dispatches to a capable Qt backend."""
+@pytest.mark.parametrize("spectrum_kind", ("spectrum_array", "epochs_spectrum"))
+def test_plot_spectrum_topo_qt_dispatch(monkeypatch, request, spectrum_kind):
+    """Test that Spectrum and EpochsSpectrum dispatch to a capable Qt backend."""
     from mne.viz import _figure
 
-    spectrum = _get_topo_spectrum()
+    spectrum = (
+        _get_topo_spectrum()
+        if spectrum_kind == "spectrum_array"
+        else request.getfixturevalue(spectrum_kind)
+    )
     handle = object()
     calls = dict()
 
